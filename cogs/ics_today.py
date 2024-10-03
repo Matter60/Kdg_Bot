@@ -1,5 +1,5 @@
 import discord
-import aiohttp  # Use aiohttp for async HTTP requests
+import aiohttp
 from discord.ext import commands
 from datetime import datetime
 from icalendar import Calendar
@@ -27,7 +27,7 @@ class IcsToday(commands.Cog):
                 async with session.get(url, timeout=10) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to fetch calendar: {response.status}")
-                    ical_data = await response.read()  # Fetch data asynchronously
+                    ical_data = await response.read()
                     print("iCalendar fetched successfully.")
         except Exception as e:
             await ctx.send(f"Failed to fetch the iCalendar data: {e}")
@@ -40,7 +40,9 @@ class IcsToday(commands.Cog):
             await ctx.send(f"Failed to parse the iCalendar data: {e}")
             return
         
-        today = datetime.now(pytz.timezone('Etc/GMT-2')).date()  # Get today's date in the target timezone
+        # Gebruik Europe/Amsterdam voor GMT+2 tijdzone
+        gmt_plus_2 = pytz.timezone('Europe/Amsterdam')
+        today = datetime.now(gmt_plus_2).date()
         events_today = []
 
         for component in calendar.walk():
@@ -52,13 +54,18 @@ class IcsToday(commands.Cog):
                     end = component.get('dtend').dt
                     description = component.get('description', 'No description available.')
 
-                    # Convert times to GMT+2 if not already timezone aware
+                    # Handle timezone-aware or naive datetime objects
                     if start.tzinfo is None:
-                        start = pytz.utc.localize(start).astimezone(pytz.timezone('Etc/GMT-2'))
-                    if end.tzinfo is None:
-                        end = pytz.utc.localize(end).astimezone(pytz.timezone('Etc/GMT-2'))
+                        start = pytz.utc.localize(start).astimezone(gmt_plus_2)
+                    else:
+                        start = start.astimezone(gmt_plus_2)
 
-                    # Check if the event is today
+                    if end.tzinfo is None:
+                        end = pytz.utc.localize(end).astimezone(gmt_plus_2)
+                    else:
+                        end = end.astimezone(gmt_plus_2)
+
+                    # Check if the event is today in GMT+2
                     if start.date() == today:
                         events_today.append({
                             'name': event_name,
